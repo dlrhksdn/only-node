@@ -1,49 +1,64 @@
-/**
- * nodemon을 활용하면 저장되는 내용에 대해서 바로바로 수정된 결과를 볼 수 있음
- * npm install nodemon --g 명령어로 nodemon을 global로 설치
- * 
- * html대신 서버에서 쓰기 좋은 동적 웹사이트 탬플릿 엔진을 가진 ejs를 이용
- */
-
 const express = require('express');
 const app = express();
 const port = 3000;
-var bodyParser = require('body-parser');
+const bodyParser = require('body-parser');
+const { createClient } = require('@supabase/supabase-js');
 
+const supabaseUrl = 'https://djfyfhvtefwpgiealmcy.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqZnlmaHZ0ZWZ3cGdpZWFsbWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk0MDkyNDgsImV4cCI6MjA0NDk4NTI0OH0.rMmhI_hxJP1f0ep_pPHRtm9EG9UnQv-qHVhTIglGrVM';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 app.set('view engine', 'ejs');
 app.set('views', './views');
-
-app.use(bodyParser.urlencoded({extended : false}));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(__dirname + '/public'));
 
-//라우팅
+// 라우팅
 app.get('/', (req, res) => {
-  res.render('index');  
+  res.render('index');
 });
 
 app.get('/profile', (req, res) => {
-  res.render('profile'); 
+  res.render('profile');
 });
 
 app.get('/map', (req, res) => {
-  res.render('map');  
-}); 
+  res.render('map');
+});
 
 app.get('/contact', (req, res) => {
-  res.render('contact');  
-});
-  
-//일단 화면에 띄우기는 했는데 이걸 database랑 연동해봐야겠지? 예를들면 supabase
-app.post('/contactProc', (req, res) => {
-  const name = req.body.name;
-  const phone = req.body.phone;
-  const email = req.body.email;
-  const memo = req.body.memo;
-  var a = `${name} ${phone} ${email} ${memo}` //변수를 넣고 싶을때는 '작은 따움표가 아니라 `백 따움표 사용 ~에 있는
-  res.send(a);
+  res.render('contact');
 });
 
+// 비동기 함수로 변환
+app.get('/contactData', async (req, res) => {
+  try {
+    const { data: selectData, error: selectError } = await supabase
+      .from('contacts')
+      .select('*');
+    if (selectError) throw selectError;
+    console.log(selectData);
+    res.json(selectData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error retrieving data');
+  }
+});
+
+app.post('/contactProc', async (req, res) => {
+  try {
+    const { name, phone, email, memo } = req.body;
+    const { data: insertData, error: insertError } = await supabase
+      .from('contacts')
+      .insert({ name, phone, email, message: memo });
+    if (insertError) throw insertError;
+    console.log(insertData);
+    res.send(`${name} ${phone} ${email} ${memo}`);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error inserting data');
+  }
+});
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
